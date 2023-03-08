@@ -16,14 +16,24 @@
   apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
   ignore_errors: true
 
-# Can be switched off in consideration of internet cost and time taken
-# - name: Upgrade all apt packages
-#   apt: upgrade=dist force_apt_get=yes
-
 - name: "Install mysql-server-{{v_major}}.{{v_minor}}"
   ansible.builtin.apt:
     name: mysql-server-{{v_major}}.{{v_minor}}
     state: present
+
+
+# http://192.168.2.238/app-repo/mysql-community-server-core_8.0.32-1ubuntu22.04_amd64.deb
+# - name: download mysql-server deb pkg
+#   get_url:
+#     # url: https://cdn.mysql.com//Downloads/MySQL-Shell/mysql-shell_{{v_major}}.{{v_minor}}.{{v_release}}-.{{v_platform}}.deb
+#     url: "{{ local_repository }}/mysql-community-server-core_{{v_major}}.{{v_minor}}.{{v_release}}-{{v_platform}}.deb"
+#     dest: /home/{{r_user}}/mysql-community-server-core_{{v_major}}.{{v_minor}}.{{v_release}}-{{v_platform}}.deb
+#     force: yes
+
+# - name: Install a mysql-community-server-core package
+#   ansible.builtin.apt:
+#     deb: /home/{{r_user}}/mysql-community-server-core_{{v_major}}.{{v_minor}}.{{v_release}}-{{v_platform}}.deb
+
 
 - name: Populate service facts
   ansible.builtin.service_facts:
@@ -32,12 +42,24 @@
   ansible.builtin.set_fact:
     mysql_service_status: "{{ ansible_facts.services[mysql_service_name[ansible_os_family]].state | default('inactive') }}"
 
-- name: Install MySQL utils
-  ansible.builtin.package:
-    name: 
-      - mysql-shell
-    state: present
-    update_cache: yes
+# - name: Install MySQL utils
+#   ansible.builtin.package:
+#     name: 
+#       - mysql-shell
+#     state: present
+#     update_cache: yes
+
+# http://192.168.2.238/app-repo/mysql-shell_8.0.32-1ubuntu22.04_amd64
+- name: download mysql-shell deb pkg
+  get_url:
+    # url: https://cdn.mysql.com//Downloads/MySQL-Shell/mysql-shell_{{v_major}}.{{v_minor}}.{{v_release}}-.{{v_platform}}.deb
+    url: "{{ local_repository }}/mysql-shell_{{v_major}}.{{v_minor}}.{{v_release}}-{{v_platform}}.deb"
+    dest: /home/{{r_user}}/mysql-shell_{{v_major}}.{{v_minor}}.{{v_release}}-{{v_platform}}.deb
+    force: yes
+
+- name: Install a mysql-shell package
+  ansible.builtin.apt:
+    deb: /home/{{r_user}}/mysql-shell_{{v_major}}.{{v_minor}}.{{v_release}}-{{v_platform}}.deb
 
 - name: copy innodb_cluster_cli.py util
   ansible.builtin.copy:

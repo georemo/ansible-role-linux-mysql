@@ -1,28 +1,30 @@
 ---
 
-- name: disable ufw
+- name: disable firewalld
   ansible.builtin.systemd:
-    name: ufw 
+    name: firewalld 
     state: stopped 
     enabled: no
   when: disable_firewall
 
-# - name: Configure MySQL community repo
-#   ansible.builtin.apt:
-#     deb: "{{ mysql_repo_url[ansible_os_family] }}"
-#     state: present
+- name: Put SELinux in permissive mode, logging actions that would be blocked.
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+  when: disable_selinux
 
-- name: Update apt-get repo and cache
-  apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
-  ignore_errors: true
+- name: Disable SELinux
+  ansible.posix.selinux:
+    state: disabled
+  when: disable_selinux
 
-# Can be switched off in consideration of internet cost and time taken
-# - name: Upgrade all apt packages
-#   apt: upgrade=dist force_apt_get=yes
+- name: disable mysql yum module
+  ansible.builtin.command: yum -y module disable mysql
 
-- name: "Install mysql-server-{{v_major}}.{{v_minor}}"
-  ansible.builtin.apt:
-    name: mysql-server-{{v_major}}.{{v_minor}}
+- name: Configure MySQL community repo
+  ansible.builtin.yum:
+    disable_gpg_check: True
+    name: "{{ mysql_repo_url[ansible_distribution + '_' + ansible_distribution_major_version] }}"
     state: present
 
 - name: Populate service facts
@@ -75,7 +77,7 @@
         - /var/log/mysqld.log
       loop_control:
         loop_var: clean_idx
-
+    
     - name: Setup mysql directories
       ansible.builtin.file:
         path: "{{ dir_idx }}"
@@ -97,7 +99,7 @@
       file:
         state: absent
         path: "{{ mysql_data_dir }}"
-
+    
     - name: Copy mysql_init.sh
       ansible.builtin.template:
         src: mysql_init.sh.j2
@@ -110,10 +112,10 @@
         msg: MySQL root password was not set
       when:  mysql_root_pw == ''
 
-    - name: Render mysql.service
+    - name: render mysqld.service
       ansible.builtin.template:
-        src: mysql.service.j2
-        dest: /etc/systemd/system/mysql.service
+        src: mysqld.service.j2
+        dest: /etc/systemd/system/mysqld.service
         mode: 0644
       notify:
         - reload systemd
@@ -147,7 +149,7 @@
         REPLICA_PASSWORD: "{{ mysql_replica_password }}"
         OPERATOR_USER: "{{ mysql_operator_user }}"
         OPERATOR_PASSWORD: "{{ mysql_operator_password }}"
-
+    
     - name: start mysql
       ansible.builtin.systemd:
         name: "{{ mysql_service_name[ansible_os_family] }}" 
@@ -158,7 +160,7 @@
         mysqlsh --py -f /usr/local/sbin/innodb_cluster_cli.py status_localhost --user {{ mysql_operator_user }} --password {{ mysql_operator_password }}
       register: cluster_status
       when: mysql_replication_mode == 'InnoDB Cluster'
-   
+      
     - include_tasks: 
         file: setup_innodb_cluster.yml
       when:

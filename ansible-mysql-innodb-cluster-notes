@@ -1,0 +1,7 @@
+
+
+- set root password
+- change ip addresses compliant with lxdbr0
+- change vagrant image
+- change target to lxd containers from vagrant
+ssh-copy-id devops@cd-sql-cluster-110 / yU0B14NC1PdE

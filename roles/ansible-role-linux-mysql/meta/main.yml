@@ -10,7 +10,7 @@ galaxy_info:
         - focal
     - name: Fedora
       versions:
-        - "35"
+        - 35
   galaxy_tags:
     - mysql
     - innodb-cluster
