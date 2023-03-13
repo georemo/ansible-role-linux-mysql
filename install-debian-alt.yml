@@ -1,0 +1,209 @@
+---
+# ----------------------------------------------------------
+## copy installer files to webserver for easy and fast access by ansible
+# lxc file push ~/app-repo/mysql-community-server-core_8.0.32-1ubuntu22.04_amd64.deb  webserver-238/var/www/html/app-repo/
+
+# SECTION ONE: install mysql
+- hosts: mysql
+  remote_user: devops
+  become: true
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+    # --------------------
+    - name: Update apt-get repo and cache
+      apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+      ignore_errors: true
+
+    # Can be switched off in consideration of internet cost and time taken
+    - name: Upgrade all apt packages
+      apt: upgrade=dist force_apt_get=yes
+
+    - name: "Install mysql-server-{{v_major}}.{{v_minor}}"
+      ansible.builtin.apt:
+        name: "mysql-server-{{v_major}}.{{v_minor}}"
+        state: present
+
+    - name: download mysql-shell deb pkg
+      get_url:
+        # url: https://cdn.mysql.com//Downloads/MySQL-Shell/mysql-shell_{{v_major}}.{{v_minor}}.{{v_release}}-.{{v_platform}}.deb
+        url: " http://192.168.2.238/app-repo/mysql-shell_8.0.32-1ubuntu22.04_amd64.deb"
+        dest: /home/devops/mysql-shell_8.0.32-1ubuntu22.04_amd64.deb
+        force: yes
+
+    - name: Install a .deb package
+      ansible.builtin.apt:
+        deb: /home/devops/mysql-shell_8.0.32-1ubuntu22.04_amd64.deb
+
+    # - name: Install MySQL utils
+    #   ansible.builtin.package:
+    #     name: 
+    #       - mysql-shell
+    #     state: present
+
+    - name: Ensure mysql remote connection is enabled
+      replace:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: "^bind-address.*"
+        replace: "bind-address         = 0.0.0.0"
+        backup: yes
+
+    - name: Ensure mysqlx remote connection is enabled
+      replace:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: "^mysqlx-bind-address.*"
+        replace: "mysqlx-bind-address  = 0.0.0.0"
+        backup: yes
+
+    - name: Configure mysqld socket location
+      shell:
+        cmd: |
+          #
+          # The MySQL database server configuration file.
+          #
+          # You can copy this to one of:
+          # - "/etc/mysql/my.cnf" to set global options,
+          # - "~/.my.cnf" to set user-specific options.
+          # 
+          # One can use all long options that the program supports.
+          # Run program with --help to get a list of available options and with
+          # --print-defaults to see which it would actually understand and use.
+          #
+          # For explanations see
+          # http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+
+          #
+          # * IMPORTANT: Additional settings that can override those from this file!
+          #   The files must end with '.cnf', otherwise they'll be ignored.
+          #
+
+          !includedir /etc/mysql/conf.d/
+          !includedir /etc/mysql/mysql.conf.d/
+          !includedir /etc/mysql/conf.d
+
+          cat > /etc/mysql/my.cnf <<EOF
+          [mysqld]
+          socket=/run/mysqld/mysqld.sock
+          [client]
+          socket=/run/mysqld/mysqld.sock
+          EOF
+      become: yes
+
+    # # // On each innodb server, add gtid_mode=ON and enforce_gtid_consistency=ON to my.cnf.
+    # # ToDo: should be implemented with 'when' on condition that instance is ready for clusters
+    # # Ref: https://dev.mysql.com/doc/refman/5.7/en/replication-mode-change-online-enable-gtids.html
+    # - name: On each innodb server, add gtid_mode=ON and enforce_gtid_consistency=ON to config file
+    #   lineinfile:
+    #     path: /etc/mysql/mysql.conf.d/mysqld.cnf
+    #     state: present
+    #     line: "{{ item }}"
+    #   with_items:
+    #   - '# gtid_mode setting for innodb cluster:'
+    #   - 'gtid_mode=ON'
+    #   - 'enforce_gtid_consistency=ON'
+    #   - '#'
+
+    - name: apply appropriate hostnames based on expected cluster nodes
+      lineinfile:
+        dest: /etc/hosts
+        line: "{{ item }}"
+      with_items:
+        "{{ cluster_hosts }}"
+
+# ----------------------------------------------------------
+# SECTION TWO: harden mysql then create admin user
+
+- hosts: mysql
+  remote_user: devops
+  become: yes
+
+  vars_files:
+    - vars.yml
+
+  roles:
+    - dev-sec.mysql-hardening
+
+  tasks:
+    - name: Restarted service mysql after hardening
+      ansible.builtin.service:
+        name: mysql
+        state: restarted
+
+    - name: Create database user with password and all database privileges and 'WITH GRANT OPTION'
+      community.mysql.mysql_user:
+        name: "{{ mysql_admin }}"
+        password: "{{ mysql_admin_pw }}"
+        host: "%"
+        priv: "*.*:ALL,GRANT"
+        state: present
+
+# ----------------------------------------------------------
+# SECTION THREE: create db users, install mysql-shell, setup cluster
+- hosts: primary
+  remote_user: devops
+  become: yes
+
+  vars_files:
+    - vars.yml
+
+  tasks:
+    # - name: Update apt-get repo and cache
+    #   apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+    #   ignore_errors: true
+    
+    # - name: Restart service mysql after allowing remote connection
+    #   ansible.builtin.service:
+    #     name: mysql
+    #     state: restarted
+
+    # - name: remove 127.0.2.* reference in /etc/hosts
+    #   replace:
+    #     path: /etc/hosts
+    #     regexp: '^127\.0\.2\.(.*)$'
+    #     replace: ""
+    #     backup: yes
+    #   become: yes
+
+    # ---------------------------------------------------
+    # INIT CLUSTER
+    - name: Init cluster
+      shell: mysqlsh --file /tmp/init_cluster.js
+      become_user: devops
+
+    
+
+    - name: Restarted service mysql after cluster configuration
+      ansible.builtin.service:
+        name: mysql
+        state: restarted
+      become: yes
+
+    # # ToDo: execute with arguments or import file eg: inventory, primary-ip
+    # - name: Re-run init cluster after restart to confirm compliance
+    #   shell: mysqlsh --file /tmp/init_cluster.js
+    #   become_user: devops
+
+    # - name: Restart service mysql after initializing replication
+    #   ansible.builtin.service:
+    #     name: mysql
+    #     state: restarted
+    #   become: yes
+
+  # ## ---------------------------------------------------
+  # ## BUILD CLUSTER
+  # - name: Run build cluster after cluster initialization
+  #   shell: mysqlsh --file ~/build_cluster.js
+  #   become_user: devops
+
+- hosts: primary
+  remote_user: devops
+
+  tasks:
+    ## ---------------------------------------------------
+    ## BUILD CLUSTER
+    # ToDo: execute with arguments or import file eg: inventory, primary-ip
+    - name: Run build cluster after cluster initialization
+      shell: mysqlsh --file /tmp/build_cluster.js
+      become_user: devops

@@ -1,0 +1,74 @@
+- create containers:
+sh lxcInit.sh
+
+cat > /etc/hosts <<EOF
+192.168.2.110 cd-sql-cluster-110
+192.168.2.111 cd-sql-cluster-111
+192.168.2.112 cd-sql-cluster-112
+EOF
+
+# there is an automated ssh-copy already executed but you may have to do it mantually.
+# First, test
+ansible all -i hosts.ini -m ping -u devops
+# In case of failure, do below for all the hosts
+sshpass -p "yU0B14NC1PdE" ssh-copy-id "devops@192.168.2.110"
+
+# once the above is ok, then you can go ahead to ansible procedures
+ansible-playbook -i hosts.ini install-debian-alt.yml --extra-vars "ansible_sudo_pass=yU0B14NC1PdE"
+
+# ------------------------------------------------------------------------------------------
+# Can't connect to local MySQL server through socket '/var/lib/mysql/mysql.sock
+# report from service status on restart suggest the file is at: /var/run/mysqld/mysqld.sock
+# nano /etc/mysql/my.cnf
+# Solution: https://phoenixnap.com/kb/mysql-server-through-socket-var-run-mysqld-mysqld-sock-2
+# Below has been implemented on the ansible playbook
+cat > /etc/mysql/my.cnf <<EOF
+#
+# The MySQL database server configuration file.
+#
+# You can copy this to one of:
+# - "/etc/mysql/my.cnf" to set global options,
+# - "~/.my.cnf" to set user-specific options.
+# 
+# One can use all long options that the program supports.
+# Run program with --help to get a list of available options and with
+# --print-defaults to see which it would actually understand and use.
+#
+# For explanations see
+# http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+
+#
+# * IMPORTANT: Additional settings that can override those from this file!
+#   The files must end with '.cnf', otherwise they'll be ignored.
+#
+
+!includedir /etc/mysql/conf.d/
+!includedir /etc/mysql/mysql.conf.d/
+!includedir /etc/mysql/conf.d
+
+[mysqld]
+socket=/run/mysqld/mysqld.sock
+[client]
+socket=/run/mysqld/mysqld.sock
+EOF
+
+sudo systemctl restart mysql.service
+
+# ------------------------------------------------------------------------------------------
+
+# confirm server is accessible via given credential and has remote connection enabled:
+lxc shell cd-sql-cluster-110
+cd@cd-sql-cluster-110
+
+# run ansible to configure cluster.
+# ansible-playbook -i hosts.ini site.yml -e mysql_bootstrap_host=cd-sql-cluster-110 --extra-vars "ansible_sudo_pass=yU0B14NC1PdE"
+# ansible-playbook -i hosts.ini site.yml  --extra-vars "ansible_sudo_pass=yU0B14NC1PdE"
+
+
+
+
+# 
+ansible-playbook -i hosts.ini site.yml -e mysql_bootstrap_host=cd-sql-cluster-110 --extra-vars "ansible_sudo_pass=yU0B14NC1PdE"
+- ssh-copy-id to all containers
+ssh-copy-id devops@cd-sql-cluster-110
+

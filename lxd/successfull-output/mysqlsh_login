@@ -1,0 +1,14 @@
+root@cd-sql-cluster-110 ~# mysqlsh cd:yU0B14NC1PdE@cd-sql-cluster-110
+MySQL Shell 8.0.32
+
+Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+Oracle is a registered trademark of Oracle Corporation and/or its affiliates.
+Other names may be trademarks of their respective owners.
+
+Type '\help' or '\?' for help; '\quit' to exit.
+WARNING: Using a password on the command line interface can be insecure.
+Creating a Classic session to 'cd@cd-sql-cluster-110'
+Fetching schema names for auto-completion... Press ^C to stop.
+Your MySQL connection id is 79
+Server version: 8.0.32-0ubuntu0.22.04.2 (Ubuntu)
+No default schema selected; type \use <schema> to set one.

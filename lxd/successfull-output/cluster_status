@@ -1,0 +1,46 @@
+ MySQL  cd-sql-cluster-110:3306 ssl  JS > var cluster = dba.getCluster('cdCluster')
+ MySQL  cd-sql-cluster-110:3306 ssl  JS > cluster.status()
+{
+    "clusterName": "cdCluster", 
+    "defaultReplicaSet": {
+        "name": "default", 
+        "primary": "cd-sql-cluster-110:3306", 
+        "ssl": "REQUIRED", 
+        "status": "OK", 
+        "statusText": "Cluster is ONLINE and can tolerate up to ONE failure.", 
+        "topology": {
+            "cd-sql-cluster-110:3306": {
+                "address": "cd-sql-cluster-110:3306", 
+                "memberRole": "PRIMARY", 
+                "mode": "R/W", 
+                "readReplicas": {}, 
+                "replicationLag": "applier_queue_applied", 
+                "role": "HA", 
+                "status": "ONLINE", 
+                "version": "8.0.32"
+            }, 
+            "cd-sql-cluster-111:3306": {
+                "address": "cd-sql-cluster-111:3306", 
+                "memberRole": "SECONDARY", 
+                "mode": "R/O", 
+                "readReplicas": {}, 
+                "replicationLag": "applier_queue_applied", 
+                "role": "HA", 
+                "status": "ONLINE", 
+                "version": "8.0.32"
+            }, 
+            "cd-sql-cluster-112:3306": {
+                "address": "cd-sql-cluster-112:3306", 
+                "memberRole": "SECONDARY", 
+                "mode": "R/O", 
+                "readReplicas": {}, 
+                "replicationLag": "applier_queue_applied", 
+                "role": "HA", 
+                "status": "ONLINE", 
+                "version": "8.0.32"
+            }
+        }, 
+        "topologyMode": "Single-Primary"
+    }, 
+    "groupInformationSourceMember": "cd-sql-cluster-110:3306"
+}

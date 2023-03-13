@@ -19,12 +19,16 @@ else
     echo "escalate the devops to sudoer:"
     usermod -aG sudo devops
     sudo id devops
+    # no password for devops as a sudoer
+    sudo echo "devops ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
     # useradd -m -s /bin/bash -p
     # useradd -m -p \$6\$QGFip3kXOicYeuKf\$pq3AMKWm9G6/iWtu10G6ciExPjRNcGZRL5Gni6zEHg46juPx4ZSSPkBMZLAF/WBfclfDbuSi4KXGW7b4hg1pH/ -s /bin/bash devops
 
     sudo mkdir /home/devops/vagrant-deploy
     sudo chmod -R 755 /home/devops/vagrant-deploy
     chown -R devops /home/devops/vagrant-deploy
+
+    
 fi
 
 

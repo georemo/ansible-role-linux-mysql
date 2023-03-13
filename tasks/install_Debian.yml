@@ -20,10 +20,10 @@
 # - name: Upgrade all apt packages
 #   apt: upgrade=dist force_apt_get=yes
 
-- name: "Install mysql-server-{{v_major}}.{{v_minor}}"
-  ansible.builtin.apt:
-    name: mysql-server-{{v_major}}.{{v_minor}}
-    state: present
+# - name: "Install mysql-server-{{v_major}}.{{v_minor}}"
+#   ansible.builtin.apt:
+#     name: mysql-server-{{v_major}}.{{v_minor}}
+#     state: present
 
 - name: Populate service facts
   ansible.builtin.service_facts:
@@ -32,12 +32,12 @@
   ansible.builtin.set_fact:
     mysql_service_status: "{{ ansible_facts.services[mysql_service_name[ansible_os_family]].state | default('inactive') }}"
 
-- name: Install MySQL utils
-  ansible.builtin.package:
-    name: 
-      - mysql-shell
-    state: present
-    update_cache: yes
+# - name: Install MySQL utils
+#   ansible.builtin.package:
+#     name: 
+#       - mysql-shell
+#     state: present
+#     update_cache: yes
 
 - name: copy innodb_cluster_cli.py util
   ansible.builtin.copy:
@@ -53,12 +53,12 @@
   register: mysql_auto_cnf
 
 - block: 
-    - name: Install MySQL
-      ansible.builtin.package:
-        name: 
-          - mysql-community-server
-        state: present
-        update_cache: yes
+    # - name: Install MySQL
+    #   ansible.builtin.package:
+    #     name: 
+    #       - mysql-community-server
+    #     state: present
+    #     update_cache: yes
 
     - name: stop mysql
       ansible.builtin.systemd:

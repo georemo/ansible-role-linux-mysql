@@ -1,26 +1,29 @@
 #!/bin/bash
 
-hostId="112"
+networkName="cd-sql-cluster"
 networkId="192.168.2"
-lxc_container="cd-sql-cluster-$hostId"
-lxc_image="ubuntu:22.04"
-initSetup="reset_environment.sh"
-initUser="setup_initial_user.sh"
+remoteUser="devops"
 
-lxc stop $lxc_container
-sleep 5
-lxc delete $lxc_container
-sleep 5
-lxc init $lxc_image $lxc_container
-sleep 20
-lxc network attach lxdbr0 $lxc_container eth0 eth0
-lxc config device set $lxc_container eth0 ipv4.address $networkId.$hostId
-sleep 5
-lxc start $lxc_container
-sleep 20
-lxc list
+# create containers
+for i in 0 1 2
+do
+sh lxdbr0-lxc.sh "$networkName" "$networkId" "11$i"
+done
 
-lxc file push $initSetup $lxc_container/tmp/
-lxc file push $initUser $lxc_container/tmp/
-lxc exec $lxc_container -- sh /tmp/$initSetup
-lxc exec $lxc_container -- sh /tmp/$initUser
+# ssh-copy-id
+for i in 0 1 2
+do
+echo "Looping ... number $i"
+ssh-keygen -f "$HOME/.ssh/known_hosts" -R "cd-sql-cluster-11$i"
+ssh-keygen -f "/home/emp-07/.ssh/known_hosts" -R "$networkId.11$i"
+sshpass -p "yU0B14NC1PdE" ssh-copy-id "$remoteUser@$networkName-11$i"
+sshpass -p "yU0B14NC1PdE" ssh-copy-id "$remoteUser@$networkId.11$i"
+done
+
+# build cluster
+echo "sending build_cluster.js file"
+lxc file push build_cluster.js cd-sql-cluster-110/tmp/
+echo "sending init_cluster.js file"
+lxc file push init_cluster.js cd-sql-cluster-110/tmp/
+
+# ansible-playbook -i hosts.ini install-debian-alt.yml --extra-vars "ansible_sudo_pass=yU0B14NC1PdE"
